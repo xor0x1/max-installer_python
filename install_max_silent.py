@@ -5,9 +5,10 @@ import subprocess
 import tempfile
 import os
 import threading
+import ssl
 
 # === НАСТРОЙКИ ===
-MSI_URL = "Ссылка на приложение max.msi в нашем случае"
+MSI_URL = "Ссылкаа на msi"
 MSI_NAME = "MAX.msi"
 # =================
 
@@ -50,7 +51,7 @@ class UpdaterApp:
 
             # Запуск установки
             self.root.after(0, lambda: self.status_label.config(text="Запуск установки..."))
-            
+
             cmd = f'msiexec /i "{msi_path}" ALLUSERS=2 MSIINSTALLPERUSER=1 /quiet'
             subprocess.Popen(cmd, shell=True)
 
@@ -63,7 +64,18 @@ class UpdaterApp:
             self.root.after(0, lambda: self.status_label.config(text="Ошибка загрузки"))
 
     def download_file(self, url, dest):
-        req = urllib.request.urlopen(url)
+        # Сначала пробуем с проверкой SSL
+        try:
+            req = urllib.request.urlopen(url)
+        except urllib.error.URLError as e:
+            if 'CERTIFICATE_VERIFY_FAILED' in str(e):
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                req = urllib.request.urlopen(url, context=ctx)
+            else:
+                raise
+
         total_size = int(req.headers.get('Content-Length', 0))
         downloaded = 0
         block_size = 8192
